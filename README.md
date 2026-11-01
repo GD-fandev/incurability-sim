@@ -24,6 +24,6 @@
 
 ## 출처 / 参考元
 
-狐(kttFox)님의 [캐릭터 시뮬레이터](https://kttfox.github.io/GodiusCharacterSimulator/) [공개 코드](https://github.com/kttFox/GodiusCharacterSimulator)를 참고하여 계산을 일부 조정했으며, 원작자의 허락을 받아 배포합니다.
+[キャラクターシミュレーター](https://kttfox.github.io/GodiusCharacterSimulator/)의 코드를 참고하여 계산을 일부 조정했으며, 원작자의 허락을 받아 배포합니다.
 
-狐さん（kttFox）の[キャラクターシミュレーター](https://kttfox.github.io/GodiusCharacterSimulator/)の[公開コード](https://github.com/kttFox/GodiusCharacterSimulator)を参考に計算方法を一部調整し、原作者の許可を得て配布しています。
+[キャラクターシミュレーター](https://kttfox.github.io/GodiusCharacterSimulator/)のコードを参考に計算方法を一部調整し、原作者の許可を得て配布しています。
