@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>무불 시뮬레이터</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f1ed;color:#292d30;font:14px/1.55 "Malgun Gothic","Yu Gothic","Meiryo",Arial,sans-serif}main{max-width:850px;margin:38px auto;padding:26px 30px 32px;background:#fff;border:1px solid #d4d4cf;border-top:4px solid #4d646f}h1{font-size:23px;letter-spacing:-.6px;margin:0 0 22px}h2{font-size:15px;margin:26px 0 12px;font-weight:700}form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;max-width:520px}label{display:block;margin-bottom:5px;font-size:13px}input,button{font:inherit;border:1px solid #b6bcbf;border-radius:2px}input{width:100%;padding:9px 12px;font-size:17px;font-variant-numeric:tabular-nums;background:#fcfcfb}input:focus,button:focus-visible{outline:2px solid #5c7989;outline-offset:2px}.mp{border-left:3px solid #6d8eaa;padding-left:12px}.sp{border-left:3px solid #819477;padding-left:12px}button{cursor:pointer;background:#fff;padding:4px 10px;font-size:12px;color:#344c59}button:hover{background:#e9eef1}#status{color:#6a7175;font-size:13px;min-height:20px;margin:14px 0}#status.error{color:#a03932}.intervals{display:flex;gap:24px;margin:12px 0;font-size:13px;color:#596367}.intervals b{font-weight:500;color:#292d30}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-variant-numeric:tabular-nums}th,td{padding:11px 12px;border-bottom:1px solid #dadddf;text-align:left}th{background:#edf0f1;color:#475359;font-weight:500;font-size:12px;border-top:1px solid #bfc8cc}td{font-size:14px}.good{color:#356343}.bad{color:#575f64}.warn{color:#95611d}#boundary,.hint{font-size:12px;color:#6a7175;margin:10px 0 0}.examples{border-top:1px solid #bfc8cc;margin-top:28px;padding-top:4px}.examples td{padding-top:8px;padding-bottom:8px}.examples th{background:#f6f5f1}.examples h2{margin-top:16px}[hidden]{display:none!important}@media(max-width:600px){main{margin:0;border-left:0;border-right:0;min-height:100vh;padding:22px 16px}form{gap:12px 16px}th,td{padding:9px 8px}.intervals{gap:14px;font-size:12px}}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:22px}header h1{margin:0}.languages{display:flex;gap:4px;flex-shrink:0}.languages button{min-width:38px;padding:4px 8px}.languages button[aria-pressed="true"]{background:#4d646f;color:#fff;border-color:#4d646f}
+.credits{margin-top:24px;padding-top:12px;border-top:1px solid #dadddf;font-size:12px;color:#6a7175}.credits p{margin:5px 0}.credits a{color:#344c59;text-underline-offset:3px}
+</style>
+</head>
+<body><main>
+<header><h1 data-i18n="title">무불 시뮬레이터</h1><div class="languages" role="group" aria-label="Language"><button type="button" data-language="ko" lang="ko" aria-label="한국어" aria-pressed="false">KR</button><button type="button" data-language="ja" lang="ja" aria-label="日本語" aria-pressed="false">JP</button></div></header>
+<form id="form">
+<div class="mp"><label for="mp" data-i18n="maxMP">최대 MP</label><input id="mp" type="number" min="1" max="10000" step="1" inputmode="numeric" required></div>
+<div class="sp"><label for="sp" data-i18n="maxSP">최대 SP</label><input id="sp" type="number" min="1" max="10000" step="1" inputmode="numeric" required></div>
+<div class="mp"><label for="men">MEN</label><input id="men" type="number" min="6" max="30" step="1" inputmode="numeric" required></div>
+<div class="sp"><label for="vit">VIT</label><input id="vit" type="number" min="6" max="30" step="1" inputmode="numeric" required></div>
+</form>
+<p id="status" role="status" data-i18n="prompt">MP·SP와 MEN·VIT를 입력하세요.</p>
+<section id="result" aria-live="polite" hidden>
+<div class="intervals"><span><span data-i18n="mpInterval">MP 회복 간격:</span> <b id="mpPeriod"></b></span><span><span data-i18n="spInterval">SP 회복 간격:</span> <b id="spPeriod"></b></span></div>
+<div class="tablewrap"><table><thead><tr><th data-i18n="accessories">액세서리</th><th data-i18n="duration">예상 지속시간</th><th data-i18n="verdict">판정</th><th data-i18n="shortage">부족 자원</th></tr></thead><tbody id="comparisons"></tbody></table></div>
+<p id="boundary"></p>
+<p class="hint" data-i18n="disclaimer">게임 화면에 표시되지 않는 소수점과 반올림 처리에 따라 실제 지속시간은 예상값과 다를 수 있습니다.</p>
+</section>
+<section class="examples"><h2 data-i18n="exampleTitle">VIT 30 · MEN 30 무한 유지 최소선</h2>
+<div class="tablewrap"><table><thead><tr><th data-i18n="accessories">액세서리</th><th data-i18n="minMP">최소 MP</th><th data-i18n="minSP">최소 SP</th><th></th></tr></thead><tbody id="examples"></tbody></table></div>
+<p class="hint" data-i18n="exampleHint">예상 최소선입니다. 적용하면 해당 MP·SP와 MEN·VIT 30이 입력됩니다.</p>
+</section>
+<footer class="credits">
+<p><span data-i18n="creditPrefix">참고 코드: </span><a href="https://kttfox.github.io/GodiusCharacterSimulator/" target="_blank" rel="noopener noreferrer" data-i18n="creditLink">狐(kttFox)님의 캐릭터 시뮬레이터</a> · <a href="https://github.com/kttFox/GodiusCharacterSimulator" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+<p data-i18n="creditNote">공개 코드를 참고하여 계산을 일부 조정했으며, 원작자의 허락을 받아 배포합니다.</p>
+</footer>
+</main><script>
+
+
+'use strict';
+const $=id=>document.getElementById(id);
+const MESSAGES={
+  "ko": {
+    "creditPrefix": "참고 코드: ",
+    "creditLink": "狐(kttFox)님의 캐릭터 시뮬레이터",
+    "creditNote": "공개 코드를 참고하여 계산을 일부 조정했으며, 원작자의 허락을 받아 배포합니다.",
+    "title": "무불 시뮬레이터",
+    "maxMP": "최대 MP",
+    "maxSP": "최대 SP",
+    "prompt": "MP·SP와 MEN·VIT를 입력하세요.",
+    "accessories": "액세서리",
+    "duration": "예상 지속시간",
+    "verdict": "판정",
+    "shortage": "부족 자원",
+    "disclaimer": "게임 화면에 표시되지 않는 소수점과 반올림 처리에 따라 실제 지속시간은 예상값과 다를 수 있습니다.",
+    "exampleTitle": "VIT 30 · MEN 30 무한 유지 최소선",
+    "minMP": "최소 MP",
+    "minSP": "최소 SP",
+    "exampleHint": "예상 최소선입니다. 적용하면 해당 MP·SP와 MEN·VIT 30이 입력됩니다.",
+    "mpInterval": "MP 회복 간격:",
+    "spInterval": "SP 회복 간격:",
+    "seconds": "초",
+    "count": "{n}개",
+    "apply": "적용",
+    "applyLabel": "액세서리 {n}개 최소선 적용",
+    "uncertainInfinite": "4시간+ ~ ∞ · 미확정",
+    "uncertainLong": "4시간 이상 · 미확정",
+    "fourHours": "4시간+",
+    "infinite": "무한 유지 예상",
+    "edge": "무한 유지 경계",
+    "long": "4시간 이상 예상",
+    "finite": "시간 제한 있음",
+    "boundary": "무한 경계: 회복 시점과 계산 조건에 따라 유한·무한 판정이 달라집니다.",
+    "failure": "계산하지 못했습니다: ",
+    "integer": "정수로 입력하세요.",
+    "range": "MP·SP는 1~10000, MEN·VIT는 6~30의 정수로 입력하세요.",
+    "calculating": "계산 중…"
+  },
+  "ja": {
+    "creditPrefix": "参考コード：",
+    "creditLink": "狐さん（kttFox）のキャラクターシミュレーター",
+    "creditNote": "公開コードを参考に計算方法を一部調整し、原作者の許可を得て配布しています。",
+    "title": "永久不治シミュ",
+    "maxMP": "最大MP",
+    "maxSP": "最大SP",
+    "prompt": "MP・SPとMEN・VITを入力してください。",
+    "accessories": "回復アクセ",
+    "duration": "予想持続時間",
+    "verdict": "判定",
+    "shortage": "先に不足する能力",
+    "disclaimer": "ゲーム画面に表示されない小数点以下の値や端数処理により、実際の持続時間は予想値と異なる場合があります。",
+    "exampleTitle": "VIT 30・MEN 30 永久維持の最低ライン",
+    "minMP": "最低MP",
+    "minSP": "最低SP",
+    "exampleHint": "予想最低ラインです。「適用」で該当するMP・SPとMEN・VIT 30が入力されます。",
+    "mpInterval": "MP回復間隔:",
+    "spInterval": "SP回復間隔:",
+    "seconds": "秒",
+    "count": "{n}点",
+    "apply": "適用",
+    "applyLabel": "回復アクセ{n}点の最低ラインを適用",
+    "uncertainInfinite": "4時間以上 ~ ∞・未確定",
+    "uncertainLong": "4時間以上・未確定",
+    "fourHours": "4時間以上",
+    "infinite": "永久維持の見込み",
+    "edge": "永久維持の境界",
+    "long": "4時間以上の見込み",
+    "finite": "持続時間に限りあり",
+    "boundary": "永久維持の境界：回復のタイミングや計算条件により、永久に維持できるかどうかが変わります。",
+    "failure": "計算できませんでした: ",
+    "integer": "整数で入力してください。",
+    "range": "MP・SPは1～10000、MEN・VITは6～30の整数で入力してください。",
+    "calculating": "計算中…"
+  }
+};
+let language=(navigator.languages?.[0]||navigator.language||'ko').toLowerCase().startsWith('ja')?'ja':'ko';
+function t(key,values={}){return MESSAGES[language][key].replace(/\{(\w+)\}/g,(_,name)=>String(values[name]??''))}
+function translatePage(){
+ document.documentElement.lang=language;
+ document.title=t('title');
+ for(const element of document.querySelectorAll('[data-i18n]'))element.textContent=t(element.dataset.i18n);
+ for(const button of document.querySelectorAll('[data-language]'))button.setAttribute('aria-pressed',String(button.dataset.language===language));
+}
+
+const MODES=['direct','staged','ceil'], LIMIT=14400, EPS=1e-8;
+let generation=0, pending=null, worker=null, lastRender=null;
+function period(stat){return 15.5/Math.floor(stat/5)}
+function gain(maximum,accessories,mode){const base=maximum/10+accessories*300;return mode==='staged'?Math.round((Math.round(maximum/10)+accessories*300)/2):mode==='ceil'?Math.ceil(base/2):Math.round(base/2)}
+function gcd(a,b){while(b){const r=a%b;a=b;b=r}return a}
+function timeLabel(t){if(!Number.isFinite(t))return '∞';const total=Math.floor(t);return `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}.${Math.floor((t-total)*10)}`}
+function simulate(maximum,initial,cost,amount,recoveryPeriod,firstRecovery,firstCost,costPeriod,stage){
+ if(maximum<initial)return {kind:'finite',time:0,reason:'insufficient_start'};
+ let value=maximum-initial, ci=0, ri=0, costAt=firstCost, recoveryAt=firstRecovery;
+ let anchor=null, recoveries=0;
+ const costMS=Math.round(costPeriod*1000), q=costMS*stage/gcd(15500,costMS*stage);
+ const sustainable=amount*costPeriod+EPS>=cost*recoveryPeriod;
+ for(let events=0;events<150000;events++){
+  const at=Math.min(costAt,recoveryAt);
+  if(at>LIMIT+EPS)return {kind:'horizon',time:LIMIT};
+  if(costAt<=recoveryAt+EPS){
+   if(value<cost)return {kind:'finite',time:costAt};
+   value-=cost;costAt=firstCost+(++ci)*costPeriod;
+  }else{
+   value=Math.min(maximum,value+amount);recoveries++;
+   if(sustainable&&value+EPS>=cost*(recoveryPeriod/costPeriod+1))return {kind:'infinite',time:Infinity};
+   if(anchor===null)anchor=value;
+   else if((recoveries-1)%q===0){
+    if(value>=anchor)return {kind:'infinite',time:Infinity};
+    anchor=value;
+   }
+   recoveryAt=firstRecovery+(++ri)*recoveryPeriod;
+  }
+ }
+ return {kind:'horizon',time:LIMIT};
+}
+function combine(a,b){
+ if(a.kind==='finite'||b.kind==='finite'){
+  const aa=a.kind==='finite'?a.time:Infinity,bb=b.kind==='finite'?b.time:Infinity;
+  return {kind:'finite',time:Math.min(aa,bb),resource:Math.abs(aa-bb)<EPS?'SP·MP':aa<bb?'SP':'MP'};
+ }
+ return {kind:a.kind==='infinite'&&b.kind==='infinite'?'infinite':'horizon',time:a.kind==='infinite'&&b.kind==='infinite'?Infinity:LIMIT,resource:'—'};
+}
+function summarize(items){const finite=items.filter(x=>x.kind==='finite'),count=items.filter(x=>x.kind==='infinite').length,horizon=items.some(x=>x.kind==='horizon');return {items,finite,infinite:count,horizon,min:finite.length?Math.min(...finite.map(x=>x.time)):Infinity,max:finite.length?Math.max(...finite.map(x=>x.time)):0}}
+function phases(p,manual){return manual!==null?[manual]:Array.from({length:17},(_,i)=>p*i/16)}
+function evaluate(cfg,acc){
+ const byMode={};
+ for(const mode of MODES){
+  const sides=['sp','mp'].map(key=>{const stat=cfg[key==='sp'?'vit':'men'],p=period(stat);return phases(p,cfg.phaseMode==='manual'?cfg[key==='sp'?'firstSP':'firstMP']:null).map(delay=>simulate(cfg[key],key==='sp'?1700:1200,key==='sp'?400:500,gain(cfg[key],key==='mp'?acc:0,mode),p,delay,cfg.firstCost,cfg.costPeriod,Math.floor(stat/5)))});
+  byMode[mode]=summarize(sides[0].flatMap(a=>sides[1].map(b=>combine(a,b))));
+ }
+ return {acc,byMode,all:summarize(MODES.flatMap(m=>byMode[m].items))};
+}
+function duration(s){if(!s.finite.length)return s.horizon?(s.infinite?t('uncertainInfinite'):t('uncertainLong')):'∞';const lo=timeLabel(s.min);return `${lo} ~ ${s.infinite?'∞':s.horizon?t('fourHours'):timeLabel(s.max)}`}
+function verdict(r){const s=r.all;if(s.infinite===s.items.length)return [t('infinite'),'good'];if(s.infinite>0)return [t('edge'),'warn'];if(s.horizon)return [t('long'),'warn'];return [t('finite'),'bad']}
+function settings(){return {sp:Number($('sp').value)*100,mp:Number($('mp').value)*100,vit:Number($('vit').value),men:Number($('men').value),firstCost:5,costPeriod:1.023,phaseMode:'range'}}
+function render(cfg,results){
+ lastRender={cfg,results};
+ $('result').hidden=false;
+ $('spPeriod').textContent=period(cfg.vit).toFixed(3)+t('seconds');
+ $('mpPeriod').textContent=period(cfg.men).toFixed(3)+t('seconds');
+ $('comparisons').innerHTML=results.map(r=>{const v=verdict(r),base=r.byMode.direct;const reasons=[...new Set(base.finite.map(x=>x.resource))].join(' / ')||'—';return `<tr><td>${t('count',{n:r.acc})}</td><td>${duration(base)}</td><td class="${v[1]}">${v[0]}</td><td>${reasons}</td></tr>`}).join('');
+ $('boundary').textContent=results.some(r=>r.all.infinite>0&&r.all.infinite<r.all.items.length)?t('boundary'):'';
+ $('status').textContent='';
+}
+function showError(message){$('result').hidden=true;$('status').className='error';$('status').textContent=message}
+const engineSource=[period,gain,gcd,simulate,combine,summarize,phases,evaluate].map(fn=>fn.toString()).join('\n');
+async function fallback(cfg,id){
+ try{const results=[];for(let acc=0;acc<=3;acc++){await new Promise(resolve=>setTimeout(resolve,0));if(id!==generation)return;results.push(evaluate(cfg,acc))}if(id===generation)render(cfg,results)}catch(error){if(id===generation)showError(t('failure')+error.message)}
+}
+function calculate(cfg,id){
+ if(id!==generation)return;
+ if(typeof Worker==='undefined'){fallback(cfg,id);return}
+ let url=null;
+ try{
+  url=URL.createObjectURL(new Blob([`'use strict';const MODES=['direct','staged','ceil'], LIMIT=14400, EPS=1e-8;\n${engineSource}\nonmessage=event=>{try{const cfg=event.data;postMessage({results:[0,1,2,3].map(acc=>evaluate(cfg,acc))})}catch(error){postMessage({error:error.message})}};`],{type:'text/javascript'}));
+  const current=new Worker(url);worker=current;URL.revokeObjectURL(url);url=null;
+  current.onmessage=event=>{current.terminate();if(worker===current)worker=null;if(id!==generation)return;if(event.data.error){showError(t('failure')+event.data.error);return}render(cfg,event.data.results)};
+  current.onerror=()=>{current.terminate();if(worker===current)worker=null;if(id===generation)fallback(cfg,id)};
+  current.postMessage(cfg);
+ }catch(error){if(url)URL.revokeObjectURL(url);if(worker){worker.terminate();worker=null}fallback(cfg,id)}
+}
+function schedule(){
+ const id=++generation;clearTimeout(pending);if(worker){worker.terminate();worker=null}
+ $('result').hidden=true;$('status').className='';
+ const fields=['mp','sp','men','vit'].map(key=>$(key));
+ if(fields.some(input=>input.validity.badInput)){showError(t('integer'));return}
+ if(fields.some(input=>input.value==='')){$('status').textContent=t('prompt');return}
+ if(fields.some(input=>!input.validity.valid||!Number.isInteger(Number(input.value)))){showError(t('range'));return}
+ const cfg=settings();$('status').textContent=t('calculating');pending=setTimeout(()=>calculate(cfg,id),120);
+}
+const exampleSP=Math.ceil(400*period(30)/1.023/5);
+const examples=[0,1,2,3].map(acc=>({acc,mp:Math.ceil((500*period(30)/1.023-acc*150)/5),sp:exampleSP}));
+function renderExamples(){
+$('examples').innerHTML=examples.map(row=>`<tr><td>${t('count',{n:row.acc})}</td><td>${row.mp}</td><td>${row.sp}</td><td><button type="button" data-example="${row.acc}" aria-label="${t('applyLabel',{n:row.acc})}">${t('apply')}</button></td></tr>`).join('');
+}
+$('examples').addEventListener('click',event=>{const button=event.target.closest('button[data-example]');if(!button)return;const row=examples[Number(button.dataset.example)];$('mp').value=row.mp;$('sp').value=row.sp;$('men').value=30;$('vit').value=30;schedule()});
+for(const button of document.querySelectorAll('[data-language]'))button.addEventListener('click',()=>{
+ if(language===button.dataset.language)return;
+ const hasResult=!$('result').hidden;
+ language=button.dataset.language;
+ translatePage();renderExamples();
+ if(hasResult&&lastRender)render(lastRender.cfg,lastRender.results);else schedule();
+});
+translatePage();renderExamples();
+$('form').addEventListener('input',schedule);
+$('form').addEventListener('submit',event=>{event.preventDefault();schedule()});
+
+</script></body></html>
+
