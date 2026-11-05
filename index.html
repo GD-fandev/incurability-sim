@@ -26,7 +26,7 @@ header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
 </section>
 <section class="examples"><h2 data-i18n="exampleTitle">VIT 30 · MEN 30 무한 유지 최소선</h2>
 <div class="tablewrap"><table><thead><tr><th data-i18n="accessories">액세서리</th><th data-i18n="minMP">최소 MP</th><th data-i18n="minSP">최소 SP</th><th></th></tr></thead><tbody id="examples"></tbody></table></div>
-<p class="hint" data-i18n="exampleHint">예상 최소선입니다. 적용하면 해당 MP·SP와 MEN·VIT 30이 입력됩니다.</p>
+<p class="hint" data-i18n="exampleHint">회복 주기를 반영한 예상 최소선입니다. 적용하면 해당 MP·SP와 MEN·VIT 30이 입력됩니다.</p>
 </section>
 <footer class="credits">
 <p><span data-i18n="creditPrefix">참고 코드: </span><a href="https://kttfox.github.io/GodiusCharacterSimulator/" target="_blank" rel="noopener noreferrer" data-i18n="creditLink">キャラクターシミュレーター</a></p>
@@ -54,7 +54,7 @@ const MESSAGES={
     "exampleTitle": "VIT 30 · MEN 30 무한 유지 최소선",
     "minMP": "최소 MP",
     "minSP": "최소 SP",
-    "exampleHint": "예상 최소선입니다. 적용하면 해당 MP·SP와 MEN·VIT 30이 입력됩니다.",
+    "exampleHint": "회복 주기를 반영한 예상 최소선입니다. 적용하면 해당 MP·SP와 MEN·VIT 30이 입력됩니다.",
     "mpInterval": "MP 회복 간격:",
     "spInterval": "SP 회복 간격:",
     "seconds": "초",
@@ -90,7 +90,7 @@ const MESSAGES={
     "exampleTitle": "VIT 30・MEN 30 永久維持の最低ライン",
     "minMP": "最低MP",
     "minSP": "最低SP",
-    "exampleHint": "予想最低ラインです。「適用」で該当するMP・SPとMEN・VIT 30が入力されます。",
+    "exampleHint": "回復周期を反映した予想最低ラインです。「適用」で該当するMP・SPとMEN・VIT 30が入力されます。",
     "mpInterval": "MP回復間隔:",
     "spInterval": "SP回復間隔:",
     "seconds": "秒",
@@ -122,16 +122,22 @@ function translatePage(){
 
 const MODES=['direct','staged','ceil'], LIMIT=14400, EPS=1e-8;
 let generation=0, pending=null, worker=null, lastRender=null;
-function period(stat){return 15.5/Math.floor(stat/5)}
+function pattern(stat){const n=Math.floor(stat/5),base=Math.floor(25/n);return Array.from({length:n},(_,i)=>(i===n-1?25-base*(n-1):base)*15.43/25)}
+function period(stat){return 15.43/Math.floor(stat/5)}
+function intervalLabel(stat){const values=[...new Set(pattern(stat).map(x=>x.toFixed(3)))];return values.join(' / ')+t('seconds')}
 function gain(maximum,accessories,mode){const base=maximum/10+accessories*300;return mode==='staged'?Math.round((Math.round(maximum/10)+accessories*300)/2):mode==='ceil'?Math.ceil(base/2):Math.round(base/2)}
 function gcd(a,b){while(b){const r=a%b;a=b;b=r}return a}
 function timeLabel(t){if(!Number.isFinite(t))return '∞';const total=Math.floor(t);return `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}.${Math.floor((t-total)*10)}`}
-function simulate(maximum,initial,cost,amount,recoveryPeriod,firstRecovery,firstCost,costPeriod,stage){
+function simulate(maximum,initial,cost,amount,intervals,phase,firstCost,costPeriod){
  if(maximum<initial)return {kind:'finite',time:0,reason:'insufficient_start'};
- let value=maximum-initial, ci=0, ri=0, costAt=firstCost, recoveryAt=firstRecovery;
+ let value=maximum-initial, ci=0, costAt=firstCost, recoveryAt=phase.delay, next=phase.index;
  let anchor=null, recoveries=0;
- const costMS=Math.round(costPeriod*1000), q=costMS*stage/gcd(15500,costMS*stage);
- const sustainable=amount*costPeriod+EPS>=cost*recoveryPeriod;
+ const cycle=15.43, costMS=Math.round(costPeriod*1000);
+ const repeat=intervals.length*costMS/gcd(15430,costMS);
+ const sustainable=amount*intervals.length*costPeriod+EPS>=cost*cycle;
+ // A complete recovery cycle has nonnegative drift; this buffer covers
+ // all consumption within one cycle plus the cost-clock phase difference.
+ const safeBuffer=cost*(cycle/costPeriod+1);
  for(let events=0;events<150000;events++){
   const at=Math.min(costAt,recoveryAt);
   if(at>LIMIT+EPS)return {kind:'horizon',time:LIMIT};
@@ -140,13 +146,13 @@ function simulate(maximum,initial,cost,amount,recoveryPeriod,firstRecovery,first
    value-=cost;costAt=firstCost+(++ci)*costPeriod;
   }else{
    value=Math.min(maximum,value+amount);recoveries++;
-   if(sustainable&&value+EPS>=cost*(recoveryPeriod/costPeriod+1))return {kind:'infinite',time:Infinity};
+   if(sustainable&&value+EPS>=safeBuffer)return {kind:'infinite',time:Infinity};
    if(anchor===null)anchor=value;
-   else if((recoveries-1)%q===0){
+   else if((recoveries-1)%repeat===0){
     if(value>=anchor)return {kind:'infinite',time:Infinity};
     anchor=value;
    }
-   recoveryAt=firstRecovery+(++ri)*recoveryPeriod;
+   recoveryAt+=intervals[next];next=(next+1)%intervals.length;
   }
  }
  return {kind:'horizon',time:LIMIT};
@@ -159,11 +165,11 @@ function combine(a,b){
  return {kind:a.kind==='infinite'&&b.kind==='infinite'?'infinite':'horizon',time:a.kind==='infinite'&&b.kind==='infinite'?Infinity:LIMIT,resource:'—'};
 }
 function summarize(items){const finite=items.filter(x=>x.kind==='finite'),count=items.filter(x=>x.kind==='infinite').length,horizon=items.some(x=>x.kind==='horizon');return {items,finite,infinite:count,horizon,min:finite.length?Math.min(...finite.map(x=>x.time)):Infinity,max:finite.length?Math.max(...finite.map(x=>x.time)):0}}
-function phases(p,manual){return manual!==null?[manual]:Array.from({length:17},(_,i)=>p*i/16)}
+function phases(intervals){return intervals.flatMap((gap,index)=>Array.from({length:17},(_,i)=>({delay:gap*i/16,index:(index+1)%intervals.length})))}
 function evaluate(cfg,acc){
  const byMode={};
  for(const mode of MODES){
-  const sides=['sp','mp'].map(key=>{const stat=cfg[key==='sp'?'vit':'men'],p=period(stat);return phases(p,cfg.phaseMode==='manual'?cfg[key==='sp'?'firstSP':'firstMP']:null).map(delay=>simulate(cfg[key],key==='sp'?1700:1200,key==='sp'?400:500,gain(cfg[key],key==='mp'?acc:0,mode),p,delay,cfg.firstCost,cfg.costPeriod,Math.floor(stat/5)))});
+  const sides=['sp','mp'].map(key=>{const stat=cfg[key==='sp'?'vit':'men'],intervals=pattern(stat);return phases(intervals).map(phase=>simulate(cfg[key],key==='sp'?1700:1200,key==='sp'?400:500,gain(cfg[key],key==='mp'?acc:0,mode),intervals,phase,cfg.firstCost,cfg.costPeriod))});
   byMode[mode]=summarize(sides[0].flatMap(a=>sides[1].map(b=>combine(a,b))));
  }
  return {acc,byMode,all:summarize(MODES.flatMap(m=>byMode[m].items))};
@@ -174,14 +180,14 @@ function settings(){return {sp:Number($('sp').value)*100,mp:Number($('mp').value
 function render(cfg,results){
  lastRender={cfg,results};
  $('result').hidden=false;
- $('spPeriod').textContent=period(cfg.vit).toFixed(3)+t('seconds');
- $('mpPeriod').textContent=period(cfg.men).toFixed(3)+t('seconds');
+ $('spPeriod').textContent=intervalLabel(cfg.vit);
+ $('mpPeriod').textContent=intervalLabel(cfg.men);
  $('comparisons').innerHTML=results.map(r=>{const v=verdict(r),base=r.byMode.direct;const reasons=[...new Set(base.finite.map(x=>x.resource))].join(' / ')||'—';return `<tr><td>${t('count',{n:r.acc})}</td><td>${duration(base)}</td><td class="${v[1]}">${v[0]}</td><td>${reasons}</td></tr>`}).join('');
  $('boundary').textContent=results.some(r=>r.all.infinite>0&&r.all.infinite<r.all.items.length)?t('boundary'):'';
  $('status').textContent='';
 }
 function showError(message){$('result').hidden=true;$('status').className='error';$('status').textContent=message}
-const engineSource=[period,gain,gcd,simulate,combine,summarize,phases,evaluate].map(fn=>fn.toString()).join('\n');
+const engineSource=[pattern,period,gain,gcd,simulate,combine,summarize,phases,evaluate].map(fn=>fn.toString()).join('\n');
 async function fallback(cfg,id){
  try{const results=[];for(let acc=0;acc<=3;acc++){await new Promise(resolve=>setTimeout(resolve,0));if(id!==generation)return;results.push(evaluate(cfg,acc))}if(id===generation)render(cfg,results)}catch(error){if(id===generation)showError(t('failure')+error.message)}
 }
